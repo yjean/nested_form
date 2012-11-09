@@ -30,7 +30,7 @@ module NestedForm
       options["data-blueprint-id"] = fields_blueprint_id = fields_blueprint_id_for(association)
       args << (options.delete(:href) || "javascript:void(0)")
       args << options
-      
+
       @fields ||= {}
       @template.after_nested_form(fields_blueprint_id) do
         blueprint = {:id => fields_blueprint_id, :style => 'display: none'}
@@ -56,12 +56,12 @@ module NestedForm
     def link_to_remove(*args, &block)
       options = args.extract_options!.symbolize_keys
       options[:class] = [options[:class], "remove_nested_fields"].compact.join(" ")
-      
+
       # Extracting "milestones" from "...[milestones_attributes][...]"
       md = object_name.to_s.match /(\w+)_attributes\]\[[\w\d]+\]$/
       association = md && md[1]
       options["data-association"] = association
-      
+
       args << (options.delete(:href) || "javascript:void(0)")
       args << options
       hidden_field(:_destroy) << @template.link_to(*args, &block)
@@ -83,7 +83,11 @@ module NestedForm
     end
 
     def fields_for_nested_model(name, object, options, block)
-      classes = 'fields'
+      classes = "fields"
+      # YJEAN (09/11/2012) : class options
+      if options[:class].present?
+        classes << " #{options[:class]}"
+      end
       classes << ' marked_for_destruction' if object.respond_to?(:marked_for_destruction?) && object.marked_for_destruction?
 
       if options.fetch(:wrapper, true)
