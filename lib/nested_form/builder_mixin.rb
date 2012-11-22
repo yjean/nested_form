@@ -89,9 +89,14 @@ module NestedForm
         classes << " #{options[:class]}"
       end
       classes << ' marked_for_destruction' if object.respond_to?(:marked_for_destruction?) && object.marked_for_destruction?
+      # YJEAN (22/11/2012) : id
+      id = nil
+      if options[:dom_id].present? && options[:dom_id]
+        id = dom_id(object)
+      end
 
       if options.fetch(:wrapper, true)
-        @template.content_tag(:div, super, :class => classes)
+        @template.content_tag(:div, super, :class => classes, id: id)
       else
         super
       end
