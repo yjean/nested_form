@@ -92,6 +92,7 @@ module NestedForm
       # YJEAN (22/11/2012) : id
       id = nil
       if options[:dom_id].present? && options[:dom_id]
+        object.id = "new_#{object.class.name.pluralize.parameterize}" if object.id.nil?
         id = "#{object.class.name.parameterize}_#{object.id}"
       end
 
