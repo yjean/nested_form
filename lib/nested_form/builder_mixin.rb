@@ -20,10 +20,14 @@ module NestedForm
       options = args.extract_options!.symbolize_keys
       association = args.pop
 
-      unless (reflection = object.class.reflect_on_association(association))
-        raise ArgumentError, "Failed to find #{object.class.name} association by name \"#{association}\""
+      unless object.respond_to?("#{association}_attributes=")
+        raise ArgumentError, "Invalid association. Make sure that accepts_nested_attributes_for is used for #{association.inspect} association."
       end
-      model_object = options.delete(:model_object) || reflection.klass.new
+
+      model_object = options.delete(:model_object) do
+        reflection = object.class.reflect_on_association(association)
+        reflection.klass.new
+      end
 
       options[:class] = [options[:class], "add_nested_fields"].compact.join(" ")
       options["data-association"] = association
@@ -58,7 +62,7 @@ module NestedForm
       options[:class] = [options[:class], "remove_nested_fields"].compact.join(" ")
 
       # Extracting "milestones" from "...[milestones_attributes][...]"
-      md = object_name.to_s.match /(\w+)_attributes\]\[[\w\d]+\]$/
+      md = object_name.to_s.match /(\w+)_attributes\](?:\[[\w\d]+\])?$/
       association = md && md[1]
       options["data-association"] = association
 
@@ -71,10 +75,11 @@ module NestedForm
       # TODO Test this better
       block = args.pop || Proc.new { |fields| @template.render(:partial => "#{association_name.to_s.singularize}_fields", :locals => {:f => fields}) }
 
-      options = if args[0].kind_of? Array # Rails 3.0.x
-        args[0].dup.extract_options!
-      else
-        args.dup.extract_options!
+      options = args.dup.extract_options!
+
+      # Rails 3.0.x
+      if options.empty? && args[0].kind_of?(Array)
+        options = args[0].dup.extract_options!
       end
 
       @fields ||= {}
@@ -99,8 +104,11 @@ module NestedForm
         end
       end
 
-      if options.fetch(:wrapper, true)
-        @template.content_tag(:div, super, :class => classes, id: id)
+      perform_wrap   = options.fetch(:nested_wrapper, true)
+      perform_wrap &&= options[:wrapper] != false # wrap even if nil
+
+      if perform_wrap
+        @template.content_tag(:div, super, :class => classes)
       else
         super
       end

@@ -24,14 +24,19 @@ require "spec_helper"
           subject.link_to_add(:tasks) { "Add" }.should == '<a href="javascript:void(0)" class="add_nested_fields" data-association="tasks" data-blueprint-id="tasks_fields_blueprint">Add</a>'
         end
 
-        context 'when missing association is provided' do
-          it 'raises Argument error' do
-            expect{ subject.link_to_add('Add', :bugs) }.to raise_error(ArgumentError,
-                'Failed to find Project association by name "bugs"')
-          end
+        it 'raises ArgumentError when missing association is provided' do
+          expect {
+            subject.link_to_add('Add', :bugs)
+          }.to raise_error(ArgumentError)
+        end
+
+        it 'raises ArgumentError when accepts_nested_attributes_for is missing' do
+          expect {
+            subject.link_to_add('Add', :not_nested_tasks)
+          }.to raise_error(ArgumentError)
         end
       end
-      
+
       describe '#link_to_remove' do
         it "behaves similar to a Rails link_to" do
           subject.link_to_remove("Remove").should == '<input id="item__destroy" name="item[_destroy]" type="hidden" value="false" /><a href="javascript:void(0)" class="remove_nested_fields">Remove</a>'
@@ -66,14 +71,30 @@ require "spec_helper"
             end.should match '<a.+data-association="milestones">Remove</a>'
           end
         end
+
+        context 'has_one association' do
+          let(:company) { Company.new }
+          subject { builder.new(:item, company, template, {}, proc {}) }
+
+          it 'properly detects association name' do
+            subject.fields_for(:project, :builder => builder) do |f|
+              f.link_to_remove 'Remove'
+            end.should match '<a.+data-association="project">Remove</a>'
+          end
+        end
       end
 
       describe '#fields_for' do
         it "wraps nested fields each in a div with class" do
           2.times { project.tasks.build }
-          subject.fields_for(:tasks) do
-            "Task"
-          end.should == '<div class="fields">Task</div><div class="fields">Task</div>'
+
+          fields = if subject.is_a?(NestedForm::SimpleBuilder)
+            subject.simple_fields_for(:tasks) { "Task" }
+          else
+            subject.fields_for(:tasks) { "Task" }
+          end
+
+          fields.should == '<div class="fields">Task</div><div class="fields">Task</div>'
         end
       end
 
@@ -108,6 +129,30 @@ require "spec_helper"
       it "doesn't render wrapper div" do
         task = project.tasks.build
         fields = subject.fields_for(:tasks, :wrapper => false) { 'Task' }
+
+        fields.should eq('Task')
+
+        subject.link_to_add 'Add', :tasks
+        output = template.send(:after_nested_form_callbacks)
+
+        output.should match(/div.+data-blueprint="Task"/)
+      end
+
+      it "doesn't render wrapper div when collection is passed" do
+        task = project.tasks.build
+        fields = subject.fields_for(:tasks, project.tasks, :wrapper => false) { 'Task' }
+
+        fields.should eq('Task')
+
+        subject.link_to_add 'Add', :tasks
+        output = template.send(:after_nested_form_callbacks)
+
+        output.should match(/div.+data-blueprint="Task"/)
+      end
+
+      it "doesn't render wrapper with nested_wrapper option" do
+        task = project.tasks.build
+        fields = subject.fields_for(:tasks, :nested_wrapper => false) { 'Task' }
 
         fields.should eq('Task')
 
